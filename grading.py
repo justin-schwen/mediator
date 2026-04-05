@@ -52,8 +52,7 @@ uploaded_file = st.file_uploader("Upload Design PDF", type="pdf")
 
 if uploaded_file and api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-
+    model = genai.GenerativeModel('models/gemini-1.5-flash')
     if st.button("Run Audit"):
         with st.spinner("Executing ISE Weighted Utility Analysis..."):
             # A. Extract
