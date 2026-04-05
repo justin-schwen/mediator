@@ -52,7 +52,18 @@ uploaded_file = st.file_uploader("Upload Design PDF", type="pdf")
 
 if uploaded_file and api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
+    if uploaded_file and api_key:
+    genai.configure(api_key=api_key)
+    
+    # --- START DEBUG BLOCK ---
+    # This will print to your Streamlit "Manage App" logs
+    st.write("### Checking Available Models...") # This shows it on the website
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            st.write(f"Found: {m.name}") # Use st.write to see it on the screen!
+    # --- END DEBUG BLOCK ---
+
+    model = genai.GenerativeModel('gemini-1.5-flash')
     if st.button("Run Audit"):
         with st.spinner("Executing ISE Weighted Utility Analysis..."):
             # A. Extract
