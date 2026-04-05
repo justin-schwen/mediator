@@ -52,7 +52,7 @@ uploaded_file = st.file_uploader("Upload Design PDF", type="pdf")
 
 if uploaded_file and api_key:
     genai.configure(api_key=api_key)
-    if uploaded_file and api_key:
+        if uploaded_file and api_key:
     genai.configure(api_key=api_key)
     
     # --- START DEBUG BLOCK ---
