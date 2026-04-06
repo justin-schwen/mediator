@@ -13,36 +13,34 @@ with st.sidebar:
     st.header("🔑 Authentication")
     user_api_key = st.text_input("Enter Gemini API Key", type="password")
     st.divider()
-    st.info("Logic: 70% Safety Floor. Scores are independent; Status is holistic.")
+    st.info("Logic: 70% Safety Floor. No-Yapping Mode Enabled.")
 
 # --- 3. CORE LOGIC ---
 def extract_text_from_pdf(uploaded_file):
-    file_bytes = uploaded_file.read()
+    # Use .getvalue() to avoid file pointer issues in Streamlit
+    file_bytes = uploaded_file.getvalue()
     doc = fitz.open(stream=file_bytes, filetype="pdf")
-    return "".join([page.get_text() for page in doc])
+    text = "".join([page.get_text() for page in doc])
+    return text.strip()
 
 def get_ise_scores(text, model):
     prompt = f"""
-    You are a Technical Design Auditor. Analyze this physical product/machine design.
-    Rate the following 7 engineering metrics from 0 to 100 based ONLY on the provided text.
+    You are a Senior Systems Engineer. Audit this physical design.
+    Rate these 7 metrics from 0-100 based ONLY on the provided specs.
     
     REQUIRED JSON KEYS:
-    1. "safety_rating": (Risk of failure, thermal/mechanical safety)
-    2. "reliability_rating": (Structural integrity, MTBF, durability)
-    3. "economy_rating": (Unit cost, MSRP, production budget)
-    4. "manufacturability_rating": (Ease of assembly, COTS parts)
-    5. "environment_rating": (Recyclability, carbon footprint)
-    6. "human_factors_rating": (User ergonomics, visibility, UI)
-    7. "lifecycle_rating": (Maintenance, longevity, parts replacement)
+    1. "safety_rating", 2. "reliability_rating", 3. "economy_rating", 
+    4. "manufacturability_rating", 5. "environment_rating", 
+    6. "human_factors_rating", 7. "lifecycle_rating"
 
-    Return ONLY a JSON object.
-    Text: {text[:10000]}
+    Return ONLY raw JSON.
+    Design Text: {text[:10000]}
     """
     response = model.generate_content(prompt)
     match = re.search(r'\{.*\}', response.text, re.DOTALL)
     if match:
         return json.loads(match.group())
-    raise ValueError("AI failed to generate technical JSON scores.")
+    raise ValueError("AI failed to generate a technical JSON response.")
 
 def calculate_weighted_score(scores):
     weights = {
@@ -50,11 +48,9 @@ def calculate_weighted_score(scores):
         "manufacturability_rating": 0.10, "environment_rating": 0.10, 
         "human_factors_rating": 0.10, "lifecycle_rating": 0.10
     }
-    
-    # Calculate the raw weighted total
     raw_total = sum(scores[k] * w for k, w in weights.items())
     
-    # THE KILL SWITCH: Only affects the final verdict/status, not the component scores
+    # KILL SWITCH
     if scores['safety_rating'] < 70:
         return 0, "REJECTED (CRITICAL SAFETY FAILURE)"
     
@@ -82,39 +78,41 @@ uploaded_file = st.file_uploader("Upload Design PDF", type="pdf")
 if uploaded_file:
     if st.button("Run Engineering Audit"):
         with st.spinner("Analyzing Technical Specifications..."):
+            # A. Extract & Check Integrity
+            raw_text = extract_text_from_pdf(uploaded_file)
+            
+            if len(raw_text) < 100:
+                st.error("❌ ERROR: PDF is unreadable. This PDF likely contains only images/scans and no text layer. Please use a text-based PDF or OCR the file first.")
+                st.stop()
+            
             try:
-                raw_text = extract_text_from_pdf(uploaded_file)
+                # B. Score
                 scores = get_ise_scores(raw_text, model)
+                # C. Math
                 final_score, status = calculate_weighted_score(scores)
                 
+                # D. UI
                 st.divider()
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Weighted Utility Score", f"{final_score}/100")
-                with col2:
-                    st.subheader(f"Verdict: {status}")
-                
-                st.write("### 📊 Raw Component Ratings")
+                st.metric("Weighted Utility Score", f"{final_score}/100", delta=status)
+                st.write("### 📊 Component Ratings")
                 st.table([scores])
                 
+                # E. Specific Memo
                 memo_prompt = f"""
-                You are a Senior Systems Architect. Analyze the following design scores: {scores}.
-                Final Verdict: {status} (Final Score: {final_score}).
-
-                STRICT GUIDELINES FOR THE REPORT:
-                1. DO NOT define or explain what the categories mean (e.g., don't explain what 'Safety' is). 
-                2. For EVERY category in the scores, provide a specific engineering recommendation for improvement.
-                3. Your recommendations MUST be based on the technical flaws or gaps identified in the provided design text. 
-                4. If a score is high, explain the specific technical win from the text.
-                5. If a score is low, identify the specific failure point or missing specification in the design.
-                6. No 'To/From' headers. No performance review language.
+                You are a Senior Design Architect. Audit these scores: {scores}.
+                Verdict: {status}.
+                
+                STRICT RULES:
+                1. DO NOT define the categories or explain what a score means.
+                2. For EVERY score, give a specific recommendation based on the design text.
+                3. If a score is low, point out the exact missing detail or technical flaw in the text.
+                4. NO performance review headers. NO 'To/From' text.
                 
                 Design Text: {raw_text[:8000]}
                 """
-                
                 st.divider()
-                st.write("### 📝 Engineering Audit & Recommendations")
+                st.write("### 📝 Engineering Recommendations")
                 st.write(model.generate_content(memo_prompt).text)
                 
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Audit Error: {e}")
