@@ -13,7 +13,7 @@ with st.sidebar:
     st.header("🔑 Authentication")
     user_api_key = st.text_input("Enter Gemini API Key", type="password")
     st.divider()
-    st.info("Logic: 70% Safety Floor. No-Yapping Mode Enabled.")
+    st.info("https://ai.google.dev/gemini-api/docs/api-key")
 
 # --- 3. CORE LOGIC ---
 def extract_text_from_pdf(uploaded_file):
