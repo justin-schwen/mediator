@@ -80,7 +80,7 @@ except Exception as e:
 uploaded_file = st.file_uploader("Upload Design PDF", type="pdf")
 
 if uploaded_file:
-    if st.button("Execute Technical Audit"):
+    if st.button("Run Engineering Audit"):
         with st.spinner("Analyzing Technical Specifications..."):
             try:
                 raw_text = extract_text_from_pdf(uploaded_file)
